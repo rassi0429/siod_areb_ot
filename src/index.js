@@ -15,21 +15,21 @@ client.once('ready', () => {
 });
 
 // ロールが作成されたとき
-client.on('roleCreate', async (role) => {
-  const channel = client.channels.cache.get(LOG_CHANNEL_ID);
-  if (!channel) return;
+// client.on('roleCreate', async (role) => {
+//   const channel = client.channels.cache.get(LOG_CHANNEL_ID);
+//   if (!channel) return;
 
-  const embed = new EmbedBuilder()
-    .setTitle('🆕 ロールが作成されました')
-    .setColor(role.color || 0x00ff00)
-    .addFields(
-      { name: 'ロール名', value: role.name, inline: true },
-      { name: 'ロールID', value: role.id, inline: true },
-    )
-    .setTimestamp();
+//   const embed = new EmbedBuilder()
+//     .setTitle('🆕 ロールが作成されました')
+//     .setColor(role.color || 0x00ff00)
+//     .addFields(
+//       { name: 'ロール名', value: role.name, inline: true },
+//       { name: 'ロールID', value: role.id, inline: true },
+//     )
+//     .setTimestamp();
 
-  await channel.send({ embeds: [embed] });
-});
+//   await channel.send({ embeds: [embed] });
+// });
 
 // ロールが削除されたとき
 client.on('roleDelete', async (role) => {
