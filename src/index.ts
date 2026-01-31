@@ -1,26 +1,35 @@
-const { Client, GatewayIntentBits, EmbedBuilder, AuditLogEvent, Events } = require('discord.js');
-require('dotenv').config();
+import {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  AuditLogEvent,
+  Events,
+  Role,
+  GuildMember,
+  PartialGuildMember,
+  TextChannel,
+  User,
+  PartialUser,
+} from 'discord.js';
+import 'dotenv/config';
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
 
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 
-client.once(Events.ClientReady, () => {
-  console.log(`Logged in as ${client.user.tag}`);
+client.once(Events.ClientReady, (readyClient) => {
+  console.log(`Logged in as ${readyClient.user.tag}`);
 });
 
 // ロールが削除されたとき
-client.on(Events.GuildRoleDelete, async (role) => {
-  const channel = client.channels.cache.get(LOG_CHANNEL_ID);
+client.on(Events.GuildRoleDelete, async (role: Role) => {
+  if (!LOG_CHANNEL_ID) return;
+  const channel = client.channels.cache.get(LOG_CHANNEL_ID) as TextChannel | undefined;
   if (!channel) return;
 
-  // Audit Logから実行者を取得
-  let executor = null;
+  let executor: User | PartialUser | null = null;
   try {
     await new Promise((resolve) => setTimeout(resolve, 500));
     const auditLogs = await role.guild.fetchAuditLogs({
@@ -41,7 +50,7 @@ client.on(Events.GuildRoleDelete, async (role) => {
     .addFields(
       { name: 'ロール名', value: role.name, inline: true },
       { name: 'ロールID', value: role.id, inline: true },
-      { name: '実行者', value: executor ? `${executor.tag} (${executor.id})` : '不明', inline: false },
+      { name: '実行者', value: executor ? `${executor.tag} (${executor.id})` : '不明', inline: false }
     )
     .setTimestamp();
 
@@ -49,14 +58,13 @@ client.on(Events.GuildRoleDelete, async (role) => {
 });
 
 // ロールが更新されたとき
-client.on(Events.GuildRoleUpdate, async (oldRole, newRole) => {
-  const channel = client.channels.cache.get(LOG_CHANNEL_ID);
+client.on(Events.GuildRoleUpdate, async (oldRole: Role, newRole: Role) => {
+  if (!LOG_CHANNEL_ID) return;
+  const channel = client.channels.cache.get(LOG_CHANNEL_ID) as TextChannel | undefined;
   if (!channel) return;
 
-  // ロール名が変更された場合
   if (oldRole.name !== newRole.name) {
-    // Audit Logから実行者を取得
-    let executor = null;
+    let executor: User | PartialUser | null = null;
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
       const auditLogs = await newRole.guild.fetchAuditLogs({
@@ -78,7 +86,7 @@ client.on(Events.GuildRoleUpdate, async (oldRole, newRole) => {
         { name: '変更前', value: oldRole.name, inline: true },
         { name: '変更後', value: newRole.name, inline: true },
         { name: 'ロールID', value: newRole.id, inline: false },
-        { name: '実行者', value: executor ? `${executor.tag} (${executor.id})` : '不明', inline: false },
+        { name: '実行者', value: executor ? `${executor.tag} (${executor.id})` : '不明', inline: false }
       )
       .setTimestamp();
 
@@ -87,33 +95,27 @@ client.on(Events.GuildRoleUpdate, async (oldRole, newRole) => {
 });
 
 // メンバーのロールが変更されたとき
-client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
-  const channel = client.channels.cache.get(LOG_CHANNEL_ID);
+client.on(Events.GuildMemberUpdate, async (oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) => {
+  if (!LOG_CHANNEL_ID) return;
+  const channel = client.channels.cache.get(LOG_CHANNEL_ID) as TextChannel | undefined;
   if (!channel) return;
 
   const oldRoles = oldMember.roles.cache;
   const newRoles = newMember.roles.cache;
 
-  // 追加されたロール
   const addedRoles = newRoles.filter((role) => !oldRoles.has(role.id));
-  // 削除されたロール
   const removedRoles = oldRoles.filter((role) => !newRoles.has(role.id));
 
-  // ロール変更がない場合は終了
   if (addedRoles.size === 0 && removedRoles.size === 0) return;
 
-  // Audit Logから実行者を取得
-  let executor = null;
+  let executor: User | PartialUser | null = null;
   try {
-    // 少し待ってからaudit logを取得（イベントとログの同期のため）
     await new Promise((resolve) => setTimeout(resolve, 500));
-
     const auditLogs = await newMember.guild.fetchAuditLogs({
       type: AuditLogEvent.MemberRoleUpdate,
       limit: 5,
     });
 
-    // 対象ユーザーに対する最新のエントリを探す
     const entry = auditLogs.entries.find(
       (e) => e.target?.id === newMember.id && Date.now() - e.createdTimestamp < 5000
     );
@@ -134,7 +136,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
       .addFields(
         { name: 'ユーザー', value: `${newMember.user.tag}`, inline: true },
         { name: 'ロール', value: `${role.name}`, inline: true },
-        { name: '実行者', value: executorText, inline: false },
+        { name: '実行者', value: executorText, inline: false }
       )
       .setTimestamp();
 
@@ -148,7 +150,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
       .addFields(
         { name: 'ユーザー', value: `${newMember.user.tag}`, inline: true },
         { name: 'ロール', value: `${role.name}`, inline: true },
-        { name: '実行者', value: executorText, inline: false },
+        { name: '実行者', value: executorText, inline: false }
       )
       .setTimestamp();
 
